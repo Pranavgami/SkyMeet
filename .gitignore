@@ -5,3 +5,5 @@ dist/
 build/
 package-lock.json
 yarn.lock
+.env.development
+.env.production
