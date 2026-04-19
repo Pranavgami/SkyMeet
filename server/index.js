@@ -1,14 +1,14 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const { Server } = require('socket.io');
+require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const { Server } = require("socket.io");
 const {
   joinRoom,
   leaveRoom,
   getUsersInRoom,
   removeUserFromAllRooms,
-} = require('./roomManager');
+} = require("./roomManager");
 
 const PORT = process.env.PORT || 5000;
 
@@ -18,26 +18,26 @@ const server = http.createServer(app);
 // Accept all origins — required for ngrok tunnels and cross-device access
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
+    origin: "*",
+    methods: ["GET", "POST"],
   },
 });
 
 app.use(express.json());
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'SkyMeet signaling server running' });
+app.get("/health", (_req, res) => {
+  res.json({ status: "SkyMeet signaling server running" });
 });
 
 // Serve the React production build so a single ngrok tunnel covers both
-// the app and the signaling server (no need for two tunnels)
-const clientBuild = path.join(__dirname, '..', 'client', 'build');
+// the app and the signaling server
+const clientBuild = path.join(__dirname, "..", "client", "build");
 app.use(express.static(clientBuild));
 
-io.on('connection', (socket) => {
+io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
-  socket.on('room:join', ({ roomId, name }, callback) => {
+  socket.on("room:join", ({ roomId, name }, callback) => {
     const result = joinRoom(roomId, socket.id, name);
 
     if (!result.success) {
@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
     socket.data.name = name;
 
     // Notify others in the room
-    socket.to(roomId).emit('room:user-joined', {
+    socket.to(roomId).emit("room:user-joined", {
       socketId: socket.id,
       name,
     });
@@ -57,39 +57,39 @@ io.on('connection', (socket) => {
     callback({ success: true, users: result.users });
   });
 
-  socket.on('room:leave', () => {
+  socket.on("room:leave", () => {
     handleUserLeave(socket);
   });
 
-  socket.on('room:get-users', ({ roomId }, callback) => {
+  socket.on("room:get-users", ({ roomId }, callback) => {
     const users = getUsersInRoom(roomId);
     callback({ users });
   });
 
   // WebRTC signaling
-  socket.on('signal:offer', ({ target, offer }) => {
-    io.to(target).emit('signal:offer', {
+  socket.on("signal:offer", ({ target, offer }) => {
+    io.to(target).emit("signal:offer", {
       from: socket.id,
       offer,
       name: socket.data.name,
     });
   });
 
-  socket.on('signal:answer', ({ target, answer }) => {
-    io.to(target).emit('signal:answer', {
+  socket.on("signal:answer", ({ target, answer }) => {
+    io.to(target).emit("signal:answer", {
       from: socket.id,
       answer,
     });
   });
 
-  socket.on('signal:ice-candidate', ({ target, candidate }) => {
-    io.to(target).emit('signal:ice-candidate', {
+  socket.on("signal:ice-candidate", ({ target, candidate }) => {
+    io.to(target).emit("signal:ice-candidate", {
       from: socket.id,
       candidate,
     });
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`Socket disconnected: ${socket.id}`);
     handleUserLeave(socket);
   });
@@ -98,7 +98,7 @@ io.on('connection', (socket) => {
 function handleUserLeave(socket) {
   const leftRooms = removeUserFromAllRooms(socket.id);
   for (const { roomId, user } of leftRooms) {
-    socket.to(roomId).emit('room:user-left', {
+    socket.to(roomId).emit("room:user-left", {
       socketId: socket.id,
       name: user.name,
     });
@@ -106,9 +106,8 @@ function handleUserLeave(socket) {
   }
 }
 
-// Catch-all: send React app for any unmatched route (client-side routing)
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(clientBuild, 'index.html'));
+app.get("*", (_req, res) => {
+  res.sendFile(path.join(clientBuild, "index.html"));
 });
 
 server.listen(PORT, () => {
