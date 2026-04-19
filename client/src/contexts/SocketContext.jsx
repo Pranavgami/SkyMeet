@@ -1,10 +1,10 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
-import toast from 'react-hot-toast';
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import toast from "react-hot-toast";
 
 const SocketContext = createContext(null);
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
+const SERVER_URL = process.env.REACT_APP_SERVER_URL || window.location.origin;
 
 export function SocketProvider({ children }) {
   const socketRef = useRef(null);
@@ -13,7 +13,7 @@ export function SocketProvider({ children }) {
 
   useEffect(() => {
     const socket = io(SERVER_URL, {
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -22,27 +22,27 @@ export function SocketProvider({ children }) {
 
     socketRef.current = socket;
 
-    socket.on('connect', () => {
+    socket.on("connect", () => {
       setConnected(true);
       if (reconnectAttempts.current > 0) {
-        toast.success('Reconnected to server');
+        toast.success("Reconnected to server");
       }
       reconnectAttempts.current = 0;
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on("disconnect", (reason) => {
       setConnected(false);
-      if (reason !== 'io client disconnect') {
-        toast.error('Disconnected from server. Reconnecting...');
+      if (reason !== "io client disconnect") {
+        toast.error("Disconnected from server. Reconnecting...");
       }
     });
 
-    socket.on('reconnect_attempt', (attempt) => {
+    socket.on("reconnect_attempt", (attempt) => {
       reconnectAttempts.current = attempt;
     });
 
-    socket.on('reconnect_failed', () => {
-      toast.error('Failed to reconnect. Please refresh the page.');
+    socket.on("reconnect_failed", () => {
+      toast.error("Failed to reconnect. Please refresh the page.");
     });
 
     return () => {
@@ -60,7 +60,7 @@ export function SocketProvider({ children }) {
 export function useSocketContext() {
   const context = useContext(SocketContext);
   if (!context) {
-    throw new Error('useSocketContext must be used within a SocketProvider');
+    throw new Error("useSocketContext must be used within a SocketProvider");
   }
   return context;
 }

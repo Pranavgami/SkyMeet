@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const {
   joinRoom,
@@ -10,21 +11,28 @@ const {
 } = require('./roomManager');
 
 const PORT = process.env.PORT || 5000;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 
 const app = express();
 const server = http.createServer(app);
 
+// Accept all origins — required for ngrok tunnels and cross-device access
 const io = new Server(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
 
-app.get('/', (_req, res) => {
+app.use(express.json());
+
+app.get('/health', (_req, res) => {
   res.json({ status: 'SkyMeet signaling server running' });
 });
+
+// Serve the React production build so a single ngrok tunnel covers both
+// the app and the signaling server (no need for two tunnels)
+const clientBuild = path.join(__dirname, '..', 'client', 'build');
+app.use(express.static(clientBuild));
 
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
@@ -98,6 +106,12 @@ function handleUserLeave(socket) {
   }
 }
 
+// Catch-all: send React app for any unmatched route (client-side routing)
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientBuild, 'index.html'));
+});
+
 server.listen(PORT, () => {
   console.log(`SkyMeet server listening on port ${PORT}`);
+  console.log(`Open http://localhost:${PORT} in your browser`);
 });

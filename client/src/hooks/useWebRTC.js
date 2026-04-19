@@ -5,6 +5,17 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    // Free TURN relay — needed when both peers are behind NAT/firewalls
+    // that block direct peer-to-peer connections (common on mobile/corporate nets)
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turns:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
 };
 
@@ -13,6 +24,16 @@ export default function useWebRTC({ socket, localStream, screenStream, isScreenS
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [connectionStates, setConnectionStates] = useState(new Map());
   const pendingCandidates = useRef(new Map());
+
+  // Refs so createPeerConnection always reads the LATEST stream values,
+  // even when called from a stale closure (e.g. inside a socket callback
+  // that fired after React state updated but before the effect re-ran).
+  const localStreamRef = useRef(localStream);
+  const screenStreamRef = useRef(screenStream);
+  const isScreenSharingRef = useRef(isScreenSharing);
+  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
+  useEffect(() => { screenStreamRef.current = screenStream; }, [screenStream]);
+  useEffect(() => { isScreenSharingRef.current = isScreenSharing; }, [isScreenSharing]);
 
   const updateRemoteStream = useCallback((peerId, stream) => {
     setRemoteStreams((prev) => {
@@ -43,19 +64,24 @@ export default function useWebRTC({ socket, localStream, screenStream, isScreenS
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnections.current.set(peerId, pc);
 
-    // Add local tracks
-    if (localStream) {
-      const streamToSend = isScreenSharing && screenStream ? screenStream : localStream;
+    // Read from refs — always gets the LATEST stream regardless of when
+    // this callback was created (avoids stale-closure race condition)
+    const stream = localStreamRef.current;
+    const screen = screenStreamRef.current;
+    const sharing = isScreenSharingRef.current;
+
+    if (stream) {
+      const streamToSend = sharing && screen ? screen : stream;
       streamToSend.getTracks().forEach((track) => {
-        pc.addTrack(track, localStream);
+        pc.addTrack(track, stream);
       });
     }
 
     // Handle remote tracks
     pc.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (stream) {
-        updateRemoteStream(peerId, stream);
+      const [remoteStream] = event.streams;
+      if (remoteStream) {
+        updateRemoteStream(peerId, remoteStream);
       }
     };
 
@@ -83,7 +109,7 @@ export default function useWebRTC({ socket, localStream, screenStream, isScreenS
     };
 
     return pc;
-  }, [localStream, screenStream, isScreenSharing, socket, updateRemoteStream]);
+  }, [socket, updateRemoteStream]); // no longer depends on stream values — reads via refs
 
   const createOffer = useCallback(async (peerId) => {
     try {
@@ -95,15 +121,9 @@ export default function useWebRTC({ socket, localStream, screenStream, isScreenS
         target: peerId,
         offer: pc.localDescription,
       });
-
-      // Flush any pending ICE candidates
-      const pending = pendingCandidates.current.get(peerId);
-      if (pending) {
-        for (const candidate of pending) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        }
-        pendingCandidates.current.delete(peerId);
-      }
+      // NOTE: do NOT flush pendingCandidates here — remoteDescription is not
+      // set yet at this point. The flush happens in handleAnswer after the
+      // answer sets remoteDescription.
     } catch (err) {
       console.error('Error creating offer:', err);
       toast.error('Failed to establish connection with a peer.');
@@ -138,8 +158,18 @@ export default function useWebRTC({ socket, localStream, screenStream, isScreenS
   const handleAnswer = useCallback(async (peerId, answer) => {
     try {
       const pc = peerConnections.current.get(peerId);
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      if (!pc) return;
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+      // Now that remoteDescription is set, apply any ICE candidates that
+      // arrived before the answer (they were queued because they can only
+      // be added after setRemoteDescription is called)
+      const pending = pendingCandidates.current.get(peerId);
+      if (pending?.length) {
+        for (const candidate of pending) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        pendingCandidates.current.delete(peerId);
       }
     } catch (err) {
       console.error('Error handling answer:', err);

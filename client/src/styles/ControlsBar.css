@@ -99,27 +99,28 @@
 
 @media (max-width: 640px) {
   .controls-bar {
-    padding: 10px 12px;
+    padding: 8px 10px;
     gap: 8px;
   }
 
   .controls-group {
     padding: 3px;
     border-radius: 14px;
+    gap: 2px;
   }
 
   .control-btn {
-    padding: 10px;
+    padding: 9px;
     border-radius: 50%;
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
     justify-content: center;
   }
 
   .control-end {
     border-radius: 14px;
     width: auto;
-    padding: 10px 20px;
+    padding: 9px 16px;
   }
 
   .control-label {

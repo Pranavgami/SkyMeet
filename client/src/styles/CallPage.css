@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
   background: var(--bg-primary);
 }
 
@@ -117,6 +118,7 @@
 
 .call-grid-area {
   flex: 1;
+  min-height: 0;
   padding: 12px;
   position: relative;
   transition: all var(--transition-slow);
@@ -133,19 +135,22 @@
   display: grid;
   gap: 8px;
   flex: 1;
+  min-height: 0;
   width: 100%;
   animation: fadeIn 0.3s ease-out;
 }
 
 .grid-1 {
   grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  width: 100%;
   max-width: 960px;
   margin: 0 auto;
 }
 
 .grid-2 {
   grid-template-columns: 1fr 1fr;
-  align-items: center;
+  grid-template-rows: 1fr;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -165,6 +170,7 @@
   display: flex;
   gap: 8px;
   flex: 1;
+  min-height: 0;
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -492,10 +498,10 @@
   }
 
   .self-view-pip {
-    width: 130px;
-    height: 100px;
-    bottom: 10px;
-    right: 10px;
+    width: 110px;
+    height: 84px;
+    bottom: 8px;
+    right: 8px;
   }
 
   .participants-panel {
@@ -508,7 +514,7 @@
   }
 
   .call-grid-area {
-    padding: 8px;
+    padding: 6px;
   }
 
   .presenter-layout {
@@ -518,18 +524,18 @@
   .presenter-sidebar {
     width: 100%;
     flex-direction: row;
-    height: 100px;
+    height: 90px;
     overflow-x: auto;
     overflow-y: hidden;
   }
 
   .presenter-sidebar .video-tile {
-    width: 130px;
+    width: 120px;
     height: 100%;
   }
 
   .screen-share-popup {
-    bottom: 90px;
+    bottom: 80px;
     padding: 6px 8px;
   }
 
@@ -550,19 +556,59 @@
   }
 
   .room-id-chip {
-    max-width: 100px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+
+  /* Unstick absolute timer — use inline flex for true centering */
+  .room-header-center {
+    position: static;
+    transform: none;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .room-header-left {
+    gap: 8px;
+  }
+
+  .room-header-right {
+    gap: 8px;
+  }
+
+  .header-participant-count {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .call-timer {
+    font-size: 12px;
+    padding: 4px 8px;
   }
 }
 
 @media (max-width: 480px) {
-  .video-grid.grid-4,
+  .video-grid.grid-4 {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+  }
+
   .video-grid.grid-6 {
     grid-template-columns: 1fr;
+    grid-template-rows: repeat(6, 1fr);
   }
 
   .room-header {
-    padding: 0 12px;
+    padding: 0 10px;
+    height: 48px;
+  }
+
+  .call-grid-area {
+    padding: 4px;
   }
 }
